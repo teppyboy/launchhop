@@ -1,0 +1,11 @@
+[package]
+name = "launchhop"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0.174", features = ["derive"] }
+toml = "0.7.6"
+dll-syringe = { version = "0.15.2", features = ["into-x86-from-x64"] }
