@@ -4,12 +4,11 @@ use std::fs;
 use std::process::Command;
 use std::{thread, time};
 use windows::{
-    core::*, Win32::UI::WindowsAndMessaging::*,
-    Win32::Foundation::*, Win32::System::LibraryLoader::FreeLibraryAndExitThread,
-    Win32::System::{
-        SystemServices::*,
-        Console::*, Threading::*,
-    }
+    core::*,
+    Win32::Foundation::*,
+    Win32::System::LibraryLoader::FreeLibraryAndExitThread,
+    Win32::System::{Console::*, SystemServices::*, Threading::*},
+    Win32::UI::WindowsAndMessaging::*,
 };
 
 #[derive(Deserialize)]
@@ -27,6 +26,7 @@ struct Launcher {
 
 #[derive(Deserialize)]
 struct Config {
+    debug: bool,
     target: Program,
     launcher: Launcher,
 }
@@ -43,17 +43,43 @@ pub extern "C" fn add(left: usize, right: usize) -> usize {
 extern "system" fn DllMain(dll_module: HMODULE, call_reason: u32, _: *mut ()) -> u32 {
     unsafe {
         match call_reason {
+            // https://www.unknowncheats.me/forum/rust-language-/330583-pure-rust-injectable-dll.html
+            // but ported over windows-rs
             DLL_PROCESS_ATTACH => attach(),
             DLL_PROCESS_DETACH => (),
             _ => (),
         }
         // Unload the DLL immediately after initialization.
-        FreeConsole();
         FreeLibraryAndExitThread(dll_module, 0);
     }
 }
 
 unsafe fn attach() {
+    /*
+    match CreateThread(None, 0, Some(main), None, THREAD_CREATION_FLAGS(0), None) {
+        Ok(_) => (),
+        Err(_) => {
+            MessageBoxA(
+                HWND(0),
+                s!("Failed to create thread."),
+                s!("LaunchHop"),
+                MB_ICONERROR | MB_OK,
+            );
+        }
+    }
+    */
+    main();
+}
+
+unsafe fn cleanup(config: Option<Config>) -> u32 {
+    if config.is_none() || !config.unwrap().debug {
+        FreeConsole();
+    }
+    0
+}
+
+// unsafe extern "system" fn main(_: *mut c_void) -> u32 {
+unsafe fn main() -> u32 {
     let cur_proc_id = GetCurrentProcessId();
     AllocConsole();
     AttachConsole(cur_proc_id);
@@ -68,7 +94,7 @@ unsafe fn attach() {
                 s!("LaunchHop"),
                 MB_ICONERROR | MB_OK,
             );
-            return;
+            return cleanup(None);
         }
         Some(pathbuf) => pathbuf,
     };
@@ -88,7 +114,7 @@ unsafe fn attach() {
                     s!("LaunchHop"),
                     MB_ICONERROR | MB_OK,
                 );
-                return;
+                return cleanup(None);
             }
         },
         Err(_) => {
@@ -99,13 +125,13 @@ unsafe fn attach() {
                 s!("LaunchHop"),
                 MB_ICONERROR | MB_OK,
             );
-            return;
+            return cleanup(None);
         }
     };
     println!("Target path: {:?}", config.target.path);
     println!("Target args: {:?}", config.target.args);
-    let mut proc = Command::new(config.target.path);
-    for arg in config.target.args {
+    let mut proc = Command::new(config.target.path.clone());
+    for arg in config.target.args.clone() {
         proc.arg(arg);
     }
     println!("Waiting {}ms to spawn process...", config.target.delay);
@@ -124,9 +150,12 @@ unsafe fn attach() {
                 s!("LaunchHop"),
                 MB_ICONERROR | MB_OK,
             );
-            return;
+            return cleanup(Some(config));
         }
     };
+    if !config.debug {
+        FreeConsole();
+    }
     if config.launcher.kill_after_launch {
         println!("Killing launcher process...");
         let kill_result = TerminateProcess(GetCurrentProcess(), 0);
@@ -138,10 +167,10 @@ unsafe fn attach() {
                 s!("LaunchHop"),
                 MB_ICONERROR | MB_OK,
             );
-            return;
+            return cleanup(Some(config));
         }
         println!("Launcher process killed.");
-        return;
+        return 0;
     }
     if config.launcher.kill_after_target_exit {
         println!("Waiting for target process to exit...");
@@ -156,10 +185,11 @@ unsafe fn attach() {
                 s!("LaunchHop"),
                 MB_ICONERROR | MB_OK,
             );
-            return;
+            return cleanup(Some(config));
         }
         println!("Launcher process killed.");
     }
+    return 0;
 }
 
 #[cfg(test)]

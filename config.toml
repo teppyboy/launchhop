@@ -1,3 +1,5 @@
+debug = false
+
 [target]
 path = "V:\\Games\\Standalone\\Star Rail\\Games\\StarRail.exe"
 args = []
@@ -8,4 +10,4 @@ path = "V:\\Program Files\\Star Rail\\launcher.exe"
 args = []
 delay = 0
 kill_after_launch = false
-kill_after_target_exit = false
+kill_after_target_exit = true

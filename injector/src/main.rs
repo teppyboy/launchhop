@@ -11,7 +11,6 @@ struct Program {
     path: String,
     args: Vec<String>,
     delay: u64,
-    kill_after_launch: bool,
 }
 
 #[derive(Deserialize)]
@@ -56,17 +55,20 @@ fn main() {
             return;
         }
     };
-    println!("Injecting DLL...");
-    let dll_path = cwd.join("launchhop.dll");
-    let owned_proc = OwnedProcess::from_child(child_proc);
-    let syringe = Syringe::for_process(owned_proc);
-    match syringe.inject(dll_path) {
-        Ok(_) => {
-            println!("DLL injected.");
+    println!("Injecting DLL (using new thread)...");
+    thread::spawn(move || {
+        let dll_path = cwd.join("launchhop.dll");
+        let owned_proc = OwnedProcess::from_pid(child_proc.id()).unwrap();
+        let syringe = Syringe::for_process(owned_proc);
+        match syringe.inject(dll_path) {
+            Ok(_) => {
+                println!("DLL injected.");
+            }
+            Err(_) => {
+                println!("Failed to inject DLL.");
+                return;
+            }
         }
-        Err(_) => {
-            println!("Failed to inject DLL.");
-            return;
-        }
-    }
+    });
+    thread::sleep(time::Duration::from_millis(1000));
 }
