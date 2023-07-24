@@ -15,6 +15,7 @@ struct Program {
 
 #[derive(Deserialize)]
 struct Config {
+    dll_name: String,
     launcher: Program,
 }
 
@@ -57,7 +58,7 @@ fn main() {
     };
     println!("Injecting DLL (using new thread)...");
     thread::spawn(move || {
-        let dll_path = cwd.join("launchhop.dll");
+        let dll_path = cwd.join(config.dll_name);
         let owned_proc = OwnedProcess::from_pid(child_proc.id()).unwrap();
         let syringe = Syringe::for_process(owned_proc);
         match syringe.inject(dll_path) {

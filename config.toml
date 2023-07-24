@@ -1,4 +1,5 @@
 debug = false
+dll_name = "launchhop.dll"
 
 [target]
 path = "V:\\Games\\Standalone\\Star Rail\\Games\\StarRail.exe"
