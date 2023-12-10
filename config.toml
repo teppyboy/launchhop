@@ -10,5 +10,6 @@ delay = 0
 path = "V:\\Program Files\\Star Rail\\launcher.exe"
 args = []
 delay = 0
+inject_delay = 100
 kill_after_launch = false
 kill_after_target_exit = true

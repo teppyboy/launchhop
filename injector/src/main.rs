@@ -1,16 +1,16 @@
-use std::env;
-use dll_syringe::{Syringe, process::OwnedProcess};
+use dll_syringe::{process::OwnedProcess, Syringe};
 use serde::Deserialize;
+use std::env;
 use std::fs;
-use std::{time, thread};
 use std::process::Command;
-
+use std::{thread, time};
 
 #[derive(Deserialize)]
 struct Program {
     path: String,
     args: Vec<String>,
     delay: u64,
+    inject_delay: u64,
 }
 
 #[derive(Deserialize)]
@@ -20,7 +20,16 @@ struct Config {
 }
 
 fn main() {
-    println!("===/LaunchHop/===");
+    println!(
+        "
+    ██╗      █████╗ ██╗   ██╗███╗   ██╗ ██████╗██╗  ██╗██╗  ██╗ ██████╗ ██████╗ 
+    ██║     ██╔══██╗██║   ██║████╗  ██║██╔════╝██║  ██║██║  ██║██╔═══██╗██╔══██╗
+    ██║     ███████║██║   ██║██╔██╗ ██║██║     ███████║███████║██║   ██║██████╔╝
+    ██║     ██╔══██║██║   ██║██║╚██╗██║██║     ██╔══██║██╔══██║██║   ██║██╔═══╝ 
+    ███████╗██║  ██║╚██████╔╝██║ ╚████║╚██████╗██║  ██║██║  ██║╚██████╔╝██║     
+    ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝     
+                                                                                "
+    );
     println!("Reading config.toml...");
     let cwd = env::current_dir().unwrap();
     let config_path = cwd.join("config.toml");
@@ -56,20 +65,23 @@ fn main() {
             return;
         }
     };
-    println!("Injecting DLL (using new thread)...");
-    thread::spawn(move || {
-        let dll_path = cwd.join(config.dll_name);
-        let owned_proc = OwnedProcess::from_pid(child_proc.id()).unwrap();
-        let syringe = Syringe::for_process(owned_proc);
-        match syringe.inject(dll_path) {
-            Ok(_) => {
-                println!("DLL injected.");
-            }
-            Err(_) => {
-                println!("Failed to inject DLL.");
-                return;
-            }
+    println!(
+        "Waiting {}ms to before injecting...",
+        config.launcher.inject_delay
+    );
+    thread::sleep(time::Duration::from_millis(config.launcher.inject_delay));
+    println!("Injecting DLL...");
+    let dll_path = cwd.join(config.dll_name);
+    let owned_proc = OwnedProcess::from_pid(child_proc.id()).unwrap();
+    let syringe = Syringe::for_process(owned_proc);
+    match syringe.inject(dll_path) {
+        Ok(_) => {
+            println!("DLL injected.");
         }
-    });
+        Err(_) => {
+            println!("Failed to inject DLL.");
+            return;
+        }
+    }
     thread::sleep(time::Duration::from_millis(1000));
 }
